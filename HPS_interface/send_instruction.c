@@ -100,9 +100,9 @@ void bayer_grbg_to_rgb(uint8_t *bayer, uint8_t *rgb, uint8_t *greyscale, int wid
             rgb[out_idx + 0] = CLAMP(b);
             rgb[out_idx + 1] = CLAMP(g);
             rgb[out_idx + 2] = CLAMP(r);
-	    
-	        greyscale[idx] = (0.2125 * CLAMP(r)) + (0.7154 * CLAMP(g)) + (0.0721 * CLAMP(b));
-
+            
+	        //https://www.w3.org/Graphics/Color/sRGB
+            greyscale[idx] = (0.2126 * CLAMP(r)) + (0.7152 * CLAMP(g)) + (0.0722 * CLAMP(b));
         }
     }
 }

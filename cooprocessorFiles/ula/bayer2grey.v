@@ -72,9 +72,9 @@ module bayer2grey(
 				end
 				
 				2: begin
-					wGreen <= green * 8'h96;
-					wRed <= red * 8'h4D;
-					wBlue <= blue * 8'h1D;
+					wGreen <= green * 8'hB7;
+					wRed <= red * 8'h36;
+					wBlue <= blue * 8'h13;
 					stage <= 3;
 				end
 				
