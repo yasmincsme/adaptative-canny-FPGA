@@ -34,6 +34,7 @@ assign pixel_color = (x[9]||y[9]) ? 8'h0 : color;
 
 	 
 	 
+
 vga_driver vga_main_driver(
 	MHz25,
 	0,
@@ -54,16 +55,16 @@ vga_driver vga_main_driver(
 always @(*) begin
     case (offset)
         0: begin
-            color   = sw_debug[1] ? ram_data[31:24] : ram_data[7:0];
+            color   = sw_debug[1] ? 0 : ram_data[7:0];
         end
         1: begin
-            color   = sw_debug[1] ? ram_data[23:16] : ram_data[15:8];
+            color   = ram_data[15:8];
         end
         2: begin
-            color   = sw_debug[1] ? ram_data[15:8] : ram_data[23:16];
+            color   = ram_data[23:16];
         end
         3: begin
-            color   = sw_debug[1] ? ram_data[7:0] : ram_data[31:24];
+            color   = ram_data[31:24];
         end
         default: begin
             color   = 0;
@@ -73,9 +74,13 @@ end
 
 	
 	
+always @(negedge clk) begin
+	MHz25 <= ~MHz25;
+end
+	
 
 always @(posedge clk) begin
-    MHz25 <= ~MHz25;
+    
 
     if (!write_result) begin
         done <= 0;

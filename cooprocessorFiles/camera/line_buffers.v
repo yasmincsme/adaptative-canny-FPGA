@@ -44,7 +44,7 @@ end
 integer i;
 
 
-always @(posedge clk) begin
+always @(negedge clk) begin
 	if(save_data) begin
 		BUFFER0[address[8:2] * 32 +:32] <= datain;
 		
