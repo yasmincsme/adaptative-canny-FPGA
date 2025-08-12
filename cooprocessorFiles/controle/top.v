@@ -63,7 +63,7 @@ module top(
 	
 	
 	convolution_coprocessor new_coprocessor(
-		clk,
+		!clk,
 		sent_instruction,
 		(activate_instruction | ipu_request), 
 		coprocessor_data,
@@ -236,8 +236,7 @@ module top(
 			end
 				
 		endcase
-	
-	
+
 		
 		
 		if (done_conv & !write_vga) begin
