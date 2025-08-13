@@ -1,5 +1,5 @@
 module decode_ipu(
-	input [2:0] code,
+	input [3:0] code,
 	output reg [1:0] size,
 	output reg [3:0] opcode,
 	output reg [8:0] initial_v,
@@ -29,6 +29,14 @@ module decode_ipu(
 
 		case (code)
 			0: begin
+				size = 2'b01;
+				initial_v = 9'h1df;
+				opcode = CONV;
+				kernel = {8'h00,8'h00,8'h00,8'h00,8'h00,
+							 8'h00,8'h00,8'h00,8'h01,8'h00,
+							 8'h00,8'h00,8'h00,8'h00,8'h00};
+			end
+			1: begin
 				size = 2'b00;
 				initial_v = 9'h0;
 				opcode = CONV_ROB;
@@ -36,7 +44,7 @@ module decode_ipu(
 							 8'h00,8'h00,8'h00,8'hFF,8'h00,
 							 8'h00,8'h00,8'h00,8'h00,8'h01};
 			end
-			1: begin
+			2: begin
 				size = 2'b01;
 				initial_v = 9'h1df;
 				opcode = CONV_TRSP;
@@ -44,7 +52,7 @@ module decode_ipu(
 							 8'h00,8'h00,8'h02,8'h00,8'hFE,
 							 8'h00,8'h00,8'h01,8'h00,8'hFF};
 			end
-			2: begin
+			3: begin
 				size = 2'b01;
 				initial_v = 9'h1df;
 				opcode = CONV_TRSP;
@@ -52,7 +60,7 @@ module decode_ipu(
 							 8'h00,8'h00,8'h01,8'h00,8'hFF,
 							 8'h00,8'h00,8'h01,8'h00,8'hFF};
 			end
-			3: begin
+			4: begin
 				size = 2'b11;
 				initial_v = 9'h1de;
 				opcode = CONV_TRSP;
@@ -62,7 +70,7 @@ module decode_ipu(
 							 8'h01,8'h01,8'h02,8'h01,8'h01,
 							 8'h02,8'h02,8'h04,8'h02,8'h02};
 			end
-			4: begin
+			5: begin
 				size = 2'b11;
 				initial_v = 9'h1de;
 				opcode = CONV;
@@ -72,7 +80,7 @@ module decode_ipu(
 							 8'h00,8'hFF,8'hFE,8'hFF,8'h00,
 							 8'h00,8'h00,8'hFF,8'h00,8'h00};
 			end
-			5: begin
+			6: begin
 				size = 2'b01;
 				initial_v = 9'h1df;
 				opcode = CONV;
@@ -80,7 +88,7 @@ module decode_ipu(
 							 8'h00,8'h00,8'hFF,8'h05,8'hFF,
 							 8'h00,8'h00,8'h00,8'hFF,8'h00};
 			end
-			6: begin
+			7: begin
 				size = 2'b01;
 				initial_v = 9'h1df;
 				opcode = B2G;

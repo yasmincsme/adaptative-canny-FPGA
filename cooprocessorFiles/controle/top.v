@@ -108,14 +108,15 @@ module top(
 
 	
 	parameter
-					WAIT_CONV	= 2'b00,
-					LOAD_BUFFER	= 2'b01,
-					SEND_CONV 	= 2'b10,
-					STB_DELAY 	= 2'b11;
+					WAIT_CONV	= 3'b00,
+					LOAD_BUFFER	= 3'b01,
+					SEND_CONV 	= 3'b10,
+					STB_DELAY 	= 3'b11,
+					IDK_WHAT_IM_DOING 	= 3'b100;
 	
 	reg write_vga, start_process, ipu_request, start_buf, next_matrix;
 	reg [1:0]ipu_state;
-	reg [2:0]loader, instruction_code;
+	reg [3:0]loader, instruction_code;
 	reg [7:0]pixel_color;
 	reg [8:0]h_count_conv, v_count_conv, h_count_buf, v_count_buf;
 	reg [31:0] ipu_inst;
@@ -146,7 +147,7 @@ module top(
 			WAIT_CONV: begin
 				if((instruction[3:0]==PHOTO_CONV) & !start_process) begin
 					ipu_state <= LOAD_BUFFER;
-					instruction_code <= (sw[6:4] == 3'b111) ? instruction[6:4] : sw[6:4];
+					instruction_code <= (sw[7:4] == 4'b1111) ? instruction[7:4] : sw[7:4];
 					start_process <= 1;
 				end else if (instruction[3:0]!=PHOTO_CONV) begin
 					start_process <= 0;
@@ -172,7 +173,7 @@ module top(
 						h_count_buf <= 0;
 						v_count_buf <= (v_count_buf==9'h1df) ? 9'h0 : v_count_buf + 1;
 						if (loader == 0) begin
-							ipu_state <= SEND_CONV;
+							ipu_state <= IDK_WHAT_IM_DOING;
 							start_buf <= 0;
 							loader <= loader;
 						end else begin
@@ -189,6 +190,11 @@ module top(
 					
 				
 				end
+			end
+			
+			
+			IDK_WHAT_IM_DOING: begin
+				ipu_state <= SEND_CONV;
 			end
 			
 			SEND_CONV: begin
@@ -224,6 +230,8 @@ module top(
 					next_matrix <= 0;
 				end
 			end
+			
+			
 			
 			STB_DELAY: begin
 				start_buf <= 1;

@@ -164,14 +164,15 @@ int main(void){
     int program = 1;
     while (program){
         printf("===What wanna do?===\n");
-        printf("0 -\tED Roberts\n");
-        printf("1 -\tED Sobel\n");
-        printf("2 -\tED Prewitt\n");
-        printf("3 -\tED Exp. Sobel\n");
-        printf("4 -\tED Laplace\n");
-        printf("5 -\tSharpen\n");
-        printf("6 -\tConvert to Grayscale\n");
-        printf("7 -\tRead Image\n");
+		printf("0 -\tIdendity\n");
+        printf("1 -\tED Roberts\n");
+        printf("2 -\tED Sobel\n");
+        printf("3 -\tED Prewitt\n");
+        printf("4 -\tED Exp. Sobel\n");
+        printf("5 -\tED Laplace\n");
+        printf("6 -\tSharpen\n");
+        printf("7 -\tConvert to Grayscale\n");
+        printf("8 -\tRead Image\n");
         printf("===Any other integer to close program===\n");
         scanf("%d", &input);
         switch (input){
@@ -182,10 +183,11 @@ int main(void){
             case 4:
             case 5:
             case 6:
+            case 7:
                 *pio_cmd = getInstruction(input);
                 printf("\ninst: %x\n\n",*pio_cmd);
                 break;
-            case 7:
+            case 8:
                 generateImage(pio_cmd);
                 break;
             default:
