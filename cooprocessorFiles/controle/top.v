@@ -108,11 +108,10 @@ module top(
 
 	
 	parameter
-					WAIT_CONV	= 3'b00,
-					LOAD_BUFFER	= 3'b01,
-					SEND_CONV 	= 3'b10,
-					STB_DELAY 	= 3'b11,
-					IDK_WHAT_IM_DOING 	= 3'b100;
+					WAIT_CONV	= 2'b00,
+					LOAD_BUFFER	= 2'b01,
+					SEND_CONV 	= 2'b10,
+					STB_DELAY 	= 2'b11;
 	
 	reg write_vga, start_process, ipu_request, start_buf, next_matrix;
 	reg [1:0]ipu_state;
@@ -173,7 +172,7 @@ module top(
 						h_count_buf <= 0;
 						v_count_buf <= (v_count_buf==9'h1df) ? 9'h0 : v_count_buf + 1;
 						if (loader == 0) begin
-							ipu_state <= IDK_WHAT_IM_DOING;
+							ipu_state <= SEND_CONV;
 							start_buf <= 0;
 							loader <= loader;
 						end else begin
@@ -190,11 +189,6 @@ module top(
 					
 				
 				end
-			end
-			
-			
-			IDK_WHAT_IM_DOING: begin
-				ipu_state <= SEND_CONV;
 			end
 			
 			SEND_CONV: begin
