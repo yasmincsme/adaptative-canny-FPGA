@@ -116,22 +116,24 @@ module top(
 	reg write_vga, start_process, ipu_request, start_buf, next_matrix;
 	reg [1:0]ipu_state;
 	reg [3:0]loader, instruction_code;
-	reg [7:0]pixel_color;
 	reg [8:0]h_count_conv, v_count_conv, h_count_buf, v_count_buf;
 	reg [31:0] ipu_inst;
 	wire [199:0] buf_matrix, kernel;
 	wire [31:0] cam_data, conv_data, ram_data_out, data_in;						
-	wire [15:0] cam_address, conv_address, addr, hps_image_address, address_buf;
+	wire [15:0] cam_address, addr_vga, addr, hps_image_address, address_buf, addr_conv;
 	wire [8:0]h_count, v_count, initial_vertical_buffer;
+	wire [7:0]pixel_color;
 	wire [3:0]current_opcode;
 	wire [1:0]size;
 	wire cam_valid_pixel, cam_clock, cam_we, conv_we, memory_clk;
 	
 	assign address_buf = {v_count_buf, h_count_buf[8:2]};
 	assign WRITE_ENABLE = cam_we | conv_we;
-	assign addr = start_buf ? address_buf : hps_read_image ? hps_image_address : cam_we | cam_valid_pixel ? cam_address : conv_address;
+	assign addr = start_buf ? address_buf : hps_read_image ? hps_image_address : cam_we | cam_valid_pixel ? cam_address : result_writing ? addr_conv : addr_vga;
 	assign memory_clk = cam_we | cam_valid_pixel ? cam_clock : clk;
 	assign data_in = cam_we | cam_valid_pixel ? cam_data : conv_data;
+	
+	assign pixel_color = (opcode==CONV) ? (matrix_C[7:0]) : (matrix_C[23:16]);
 	
 	//LEMBRAR DE TESTAR start_buf ? .. : ..; depois
 	assign h_count = ipu_state==LOAD_BUFFER ? h_count_buf : h_count_conv;
@@ -194,11 +196,11 @@ module top(
 			SEND_CONV: begin
 				loader <= 0;
 				
-				if (!wait_signal) begin
+				if (!ipu_request) begin
 					ipu_request <= 1;
 					ipu_inst <= {v_count_conv,h_count_conv,current_opcode};
 					next_matrix <= 0;
-				end else if (ipu_request & done_conv) begin
+				end else if (conv_write_done) begin
 					ipu_request <= 0;
 					next_matrix <= 1;
 					start_buf <= 0;
@@ -224,8 +226,7 @@ module top(
 					next_matrix <= 0;
 				end
 			end
-			
-			
+						
 			
 			STB_DELAY: begin
 				start_buf <= 1;
@@ -238,16 +239,6 @@ module top(
 			end
 				
 		endcase
-
-		
-		
-		if (done_conv & !write_vga) begin
-			pixel_color <= (opcode==CONV) ? (matrix_C[7:0]) : (matrix_C[23:16]);
-			write_vga <= 1;
-		end
-		else if (write_vga & vga_ram_done) begin
-			write_vga <= 0;
-		end
 	end
 	
 	DE2_D5M camera_interface(
@@ -266,18 +257,24 @@ module top(
 	);
 	
 
+	write_result coprocessor_result_writer(
+		clk,
+		ipu_inst[21:4],
+		done_conv,
+		ram_data_out,
+		pixel_color,
+		result_writing,
+		conv_write_done,
+		conv_we,
+		conv_data,
+		addr_conv
+	);
+	
 	
 	vga_control vga_control_instance(
-		sw[3:2],
-		fetched_instruction[21:4], 
 		clk,
-		(write_vga | done_conv),
-		pixel_color,
 		ram_data_out,
-		vga_ram_done,
-		conv_address,
-		conv_data,
-		conv_we,
+		addr_vga,
 		hsync, 
 		vsync,
 		red,
@@ -289,7 +286,7 @@ module top(
 );
 
 
-	vgaMemory main_memory(  
+	vgaMemory main_memory(
 		addr,
 		memory_clk,
 		data_in,
