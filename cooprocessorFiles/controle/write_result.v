@@ -8,16 +8,22 @@ module write_result(
 	output reg done, 
 	output reg WRITE_ENABLE, 
 	output reg [31:0] data_in,
-	output reg[15:0]phy_addr
+	output wire [15:0] phy_addr
 );
 
-reg[2:0]count;
-reg[1:0]offset;
-reg [7:0] buf_pixel;
+reg [3:0]count;
+wire [1:0]offset;
+wire [7:0] buf_pixel;
 assign memory_acc = (count != 0) | convolution_done;
 
 reg delay;
 assign true_done = !delay & convolution_done;
+
+assign offset = instruction_addr[1:0];
+assign phy_addr = instruction_addr[17:2];
+assign buf_pixel = new_data;
+
+
 
 always @(posedge clk) begin
 	
@@ -25,12 +31,11 @@ always @(posedge clk) begin
 	
 	case (count)
 		0: begin
+			WRITE_ENABLE <= 0;
 			if (true_done) begin
-				offset <= instruction_addr[1:0];
-				phy_addr <= instruction_addr[17:2];
-				buf_pixel <= new_data;
-				WRITE_ENABLE <= 0;
 				count <= 1;
+			end else begin
+				count <= 0;
 			end
 		end
 
@@ -52,8 +57,23 @@ always @(posedge clk) begin
 			WRITE_ENABLE <= 1;
 			count <= 4;
 		end
-
+		
 		4: begin
+			WRITE_ENABLE <= 0;
+			count <= 5;
+		end
+		
+		5: begin
+			WRITE_ENABLE <= 0;
+			count <= 6;
+		end
+		
+		6: begin
+			WRITE_ENABLE <= 0;
+			count <= 7;
+		end
+
+		7: begin
 			WRITE_ENABLE <= 0;
 			done <= 1;
 			count <= 0;

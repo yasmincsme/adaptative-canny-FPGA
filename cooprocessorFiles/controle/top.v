@@ -129,7 +129,12 @@ module top(
 	
 	assign address_buf = {v_count_buf, h_count_buf[8:2]};
 	assign WRITE_ENABLE = cam_we | conv_we;
-	assign addr = start_buf ? address_buf : hps_read_image ? hps_image_address : cam_we | cam_valid_pixel ? cam_address : result_writing ? addr_conv : addr_vga;
+	assign addr = 	start_buf ? address_buf : 
+						hps_read_image ? hps_image_address : 
+						cam_we | cam_valid_pixel ? cam_address : 
+						result_writing ? addr_conv : 
+						addr_vga;
+
 	assign memory_clk = cam_we | cam_valid_pixel ? cam_clock : clk;
 	assign data_in = cam_we | cam_valid_pixel ? cam_data : conv_data;
 	
@@ -143,10 +148,15 @@ module top(
 	assign hps_image_address = instruction[19:4];
 	assign last_col = (h_count_buf == 9'd508);
 	
+	
+	reg test;
+	assign enable_debug = test & !key[1];
 	always @ (posedge clk) begin
+		test <= key[1];
+		
 		case (ipu_state)
 			WAIT_CONV: begin
-				if((instruction[3:0]==PHOTO_CONV) & !start_process) begin
+				if((instruction[3:0]==PHOTO_CONV | enable_debug) & !start_process) begin
 					ipu_state <= LOAD_BUFFER;
 					instruction_code <= (sw[7:4] == 4'b1111) ? instruction[7:4] : sw[7:4];
 					start_process <= 1;
