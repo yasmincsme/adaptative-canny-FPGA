@@ -4,81 +4,103 @@ module write_result(
 	input convolution_done,
 	input [31:0] ram_data,
 	input [7:0]new_data,
-	output memory_acc,
+	output reg memory_acc,
 	output reg done, 
 	output reg WRITE_ENABLE, 
 	output reg [31:0] data_in,
 	output wire [15:0] phy_addr
 );
 
-reg [3:0]count;
+reg [3:0]state, next_state;
 wire [1:0]offset;
-wire [7:0] buf_pixel;
-assign memory_acc = (count != 0) | convolution_done;
-
-reg delay;
-assign true_done = !delay & convolution_done;
+reg delay, true_done;
 
 assign offset = instruction_addr[1:0];
 assign phy_addr = instruction_addr[17:2];
-assign buf_pixel = new_data;
 
 
-
-always @(posedge clk) begin
-	
-	delay <= convolution_done;
-	
-	case (count)
+always @(*) begin
+	true_done = !delay & convolution_done;
+	case (offset)
+		0: data_in = {ram_data[31:8], new_data};
+		1: data_in = {ram_data[31:16], new_data, ram_data[7:0]};
+		2: data_in = {ram_data[31:24], new_data, ram_data[15:0]};
+		3: data_in = {new_data, ram_data[23:0]};
+	endcase
+	case (state) 
 		0: begin
-			WRITE_ENABLE <= 0;
 			if (true_done) begin
-				count <= 1;
+				next_state = 1;
+				memory_acc = 1;
 			end else begin
-				count <= 0;
+				next_state = 0;
+				memory_acc = 0;
 			end
+			WRITE_ENABLE = 0;
+			done = 0;
 		end
-
 		1: begin
-			count <= 2;
+			next_state = 2;
+			WRITE_ENABLE = 0;
+			done = 0;
+			memory_acc = 1;
 		end
-
+		
 		2: begin
-			case (offset)
-				0: data_in <= {ram_data[31:8], buf_pixel};
-				1: data_in <= {ram_data[31:16], buf_pixel, ram_data[7:0]};
-				2: data_in <= {ram_data[31:24], buf_pixel, ram_data[15:0]};
-				3: data_in <= {buf_pixel, ram_data[23:0]};
-			endcase
-			count <= 3;
+			next_state = 3;
+			WRITE_ENABLE = 0;
+			done = 0;
+			memory_acc = 1;
 		end
-
+		
 		3: begin
-			WRITE_ENABLE <= 1;
-			count <= 4;
+			next_state = 4;
+			WRITE_ENABLE = 1;
+			done = 0;
+			memory_acc = 1;
 		end
 		
 		4: begin
-			WRITE_ENABLE <= 0;
-			count <= 5;
+			next_state = 5;
+			WRITE_ENABLE = 0;
+			done = 0;
+			memory_acc = 1;
 		end
 		
 		5: begin
-			WRITE_ENABLE <= 0;
-			count <= 6;
+			next_state = 6;
+			WRITE_ENABLE = 0;
+			done = 0;
+			memory_acc = 1;
 		end
 		
 		6: begin
-			WRITE_ENABLE <= 0;
-			count <= 7;
+			next_state = 7;
+			WRITE_ENABLE = 0;
+			done = 0;
+			memory_acc = 1;
 		end
-
+		
 		7: begin
-			WRITE_ENABLE <= 0;
-			done <= 1;
-			count <= 0;
+			next_state = 0;
+			done = 1;
+			WRITE_ENABLE = 0;
+			memory_acc = 1;
+		end
+		
+		default: begin
+			next_state = 0;
+			WRITE_ENABLE = 0;
+			done = 0;
+			memory_acc = 0;
 		end
 	endcase
+end
+
+
+always @(posedge clk) begin
+	delay <= convolution_done;
+	state <= next_state;
 end
 
 

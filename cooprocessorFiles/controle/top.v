@@ -60,12 +60,14 @@ module top(
 	wire [3:0] opcode;
 	
 	assign sent_instruction = ipu_request ? ipu_inst : instruction;
-	
+	reg ipu_requestL;
+	always @(posedge clk) ipu_requestL <= ipu_request;
+	assign ipu_request_pulse = !ipu_requestL & ipu_request;
 	
 	convolution_coprocessor new_coprocessor(
 		!clk,
 		sent_instruction,
-		(activate_instruction | ipu_request), 
+		(activate_instruction | ipu_request_pulse), 
 		coprocessor_data,
 		wait_signal,
 		ipu_request,
