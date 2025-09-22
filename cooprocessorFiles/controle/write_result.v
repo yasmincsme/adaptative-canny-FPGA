@@ -82,6 +82,27 @@ always @(*) begin
 		end
 		
 		7: begin
+			next_state = 8;
+			done = 0;
+			WRITE_ENABLE = 0;
+			memory_acc = 1;
+		end
+
+		8: begin
+			next_state = 9;
+			done = 0;
+			WRITE_ENABLE = 0;
+			memory_acc = 1;
+		end
+		
+		9: begin
+			next_state = 10;
+			done = 0;
+			WRITE_ENABLE = 0;
+			memory_acc = 1;
+		end
+		
+		10: begin
 			next_state = 0;
 			done = 1;
 			WRITE_ENABLE = 0;
