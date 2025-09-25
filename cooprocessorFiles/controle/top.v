@@ -118,8 +118,8 @@ module top(
 	reg write_vga, start_process, ipu_request, start_buf, next_matrix;
 	reg [1:0]ipu_state;
 	reg [3:0]loader, instruction_code;
-	reg [8:0]h_count_conv, v_count_conv, h_count_buf, v_count_buf;
-	reg [31:0] ipu_inst;
+	reg [8:0]h_count_conv, v_count_conv, h_count_buf, v_count_buf, valor_H, valor_V;
+	reg [31:0] ipu_inst, count_debug;
 	wire [199:0] buf_matrix, kernel;
 	wire [31:0] cam_data, conv_data, ram_data_out, data_in;						
 	wire [15:0] cam_address, addr_vga, addr, hps_image_address, address_buf, addr_conv;
@@ -131,7 +131,7 @@ module top(
 	
 	assign address_buf = {v_count_buf, h_count_buf[8:2]};
 	assign WRITE_ENABLE = cam_we | conv_we;
-	assign addr = 	start_buf ? address_buf : 
+	assign addr = 	(ipu_state==LOAD_BUFFER) ? address_buf : 
 						hps_read_image ? hps_image_address : 
 						cam_we | cam_valid_pixel ? cam_address : 
 						result_writing ? addr_conv : 
@@ -148,7 +148,7 @@ module top(
 	
 	assign hps_read_image = instruction[3:0]==READ_IMAGE;
 	assign hps_image_address = instruction[19:4];
-	assign last_col = (h_count_buf == 9'd508);
+	assign last_col = (h_count_buf == {valor_H[8:2],2'b00});
 	
 	
 	reg test;
@@ -161,6 +161,8 @@ module top(
 				if((instruction[3:0]==PHOTO_CONV | enable_debug) & !start_process) begin
 					ipu_state <= LOAD_BUFFER;
 					instruction_code <= (sw[7:4] == 4'b1111) ? instruction[7:4] : sw[7:4];
+					valor_H <= instruction[16:8];
+					valor_V <= instruction[25:17];
 					start_process <= 1;
 				end else if (instruction[3:0]!=PHOTO_CONV) begin
 					start_process <= 0;
@@ -173,6 +175,7 @@ module top(
 				v_count_conv <= 0;
 				ipu_request <= 0;
 				next_matrix <= 0;
+				count_debug <= 0;
 			end
 			
 			LOAD_BUFFER: begin
@@ -182,11 +185,12 @@ module top(
 					loader <= size + 1;
 					v_count_buf <= initial_vertical_buffer;
 				end else begin
+					count_debug <= count_debug + 1;
 					if (last_col) begin
 						h_count_buf <= 0;
-						v_count_buf <= (v_count_buf==9'h1df) ? 9'h0 : v_count_buf + 1;
+						v_count_buf <= (v_count_buf==valor_V) ? 9'h0 : v_count_buf + 1;
 						if (loader == 0) begin
-							ipu_state <= SEND_CONV;
+							ipu_state <= WAIT_CONV;
 							start_buf <= 0;
 							loader <= loader;
 						end else begin
@@ -216,8 +220,8 @@ module top(
 					ipu_request <= 0;
 					next_matrix <= 1;
 					start_buf <= 0;
-					if(h_count_conv==9'h1ff)begin
-						if (v_count_conv==9'h1df) begin
+					if(h_count_conv==valor_H)begin
+						if (v_count_conv==valor_V) begin
 							h_count_conv <= 0;
 							v_count_conv <= 0;
 							ipu_state <= WAIT_CONV;
@@ -253,12 +257,16 @@ module top(
 		endcase
 	end
 	
+	assign leds = {count_debug[11:3],count_debug[0]};
+	
+	SEG7_LUT_8(h0,h1,h2,h3,h4,h5,buf_matrix[63:40]);
+	
 	DE2_D5M camera_interface(
 		clk,
 		key,
 		sw,
-		h0,h1,h2,h3,h4,h5,
-		leds,
+		,,,,,,
+		,
 		GPIO_0,
 		GPIO_1,
 		cam_data,
