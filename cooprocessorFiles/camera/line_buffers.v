@@ -5,13 +5,14 @@ module line_buffers(
 	input save_data,
 	input next_matrix,  
 	input [1:0] size, 
-	output reg [199:0] matrix
+	output reg [199:0] matrix, output [31:0] t0, output [31:0] t1
 );
 
 
 reg [4095:0] BUFFER0, BUFFER1, BUFFER2, BUFFER3, BUFFER4;
 assign new_line = !(|address);
-
+assign t0 = BUFFER0[0+:32];
+assign t1 = BUFFER0[32+:32];
 
 always @(*) begin
 
