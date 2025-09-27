@@ -197,7 +197,7 @@ module top(
 							h_count_buf <= 0;
 							v_count_buf <= (v_count_buf==valor_V) ? 9'h0 : v_count_buf + 1;
 							if (loader == 0) begin
-								ipu_state <= SEND_CONV;
+								ipu_state <= WAIT_CONV;
 								start_buf <= 0;
 								loader <= loader;
 							end else begin
