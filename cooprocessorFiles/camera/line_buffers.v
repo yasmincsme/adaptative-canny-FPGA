@@ -5,7 +5,7 @@ module line_buffers(
 	input save_data,
 	input next_matrix,  
 	input [1:0] size, 
-	output reg [199:0] matrix, output [31:0] t0, output [31:0] t1
+	output reg [199:0] matrix, output [31:0] t0, t1, u0, u1, v0, v1
 );
 
 
@@ -13,6 +13,10 @@ reg [4095:0] BUFFER0, BUFFER1, BUFFER2, BUFFER3, BUFFER4;
 assign new_line = !(|address);
 assign t0 = BUFFER0[0+:32];
 assign t1 = BUFFER0[32+:32];
+assign u0 = BUFFER1[0+:32];
+assign u1 = BUFFER1[32+:32];
+assign v0 = BUFFER2[0+:32];
+assign v1 = BUFFER2[32+:32];
 
 always @(*) begin
 
@@ -56,18 +60,11 @@ always @(posedge clk) begin
 			BUFFER4 <= BUFFER3;
 		end
 	end else if (next_matrix) begin
-		for (i = 0; i < 511; i = i + 1) begin
-			BUFFER0[(i*8)+:8] <= BUFFER0[(i+1)*8+:8];
-			BUFFER1[(i*8)+:8] <= BUFFER1[(i+1)*8+:8];
-			BUFFER2[(i*8)+:8] <= BUFFER2[(i+1)*8+:8];
-			BUFFER3[(i*8)+:8] <= BUFFER3[(i+1)*8+:8];
-			BUFFER4[(i*8)+:8] <= BUFFER4[(i+1)*8+:8];
-		end
-		BUFFER0[(511*8)+:8] <= BUFFER0[0+:8];
-		BUFFER1[(511*8)+:8] <= BUFFER1[0+:8];
-		BUFFER2[(511*8)+:8] <= BUFFER2[0+:8];
-		BUFFER3[(511*8)+:8] <= BUFFER3[0+:8];
-		BUFFER4[(511*8)+:8] <= BUFFER4[0+:8];
+		BUFFER0 <= {BUFFER0[7:0],BUFFER0[4095:8]};
+		BUFFER1 <= {BUFFER1[7:0],BUFFER1[4095:8]};
+		BUFFER2 <= {BUFFER2[7:0],BUFFER2[4095:8]};
+		BUFFER3 <= {BUFFER3[7:0],BUFFER3[4095:8]};
+		BUFFER4 <= {BUFFER4[7:0],BUFFER4[4095:8]};
 	end
 end
 

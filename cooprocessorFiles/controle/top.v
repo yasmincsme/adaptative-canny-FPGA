@@ -120,9 +120,9 @@ module top(
 	reg [1:0]ipu_state;
 	reg [3:0]loader, instruction_code;
 	reg [8:0]h_count_conv, v_count_conv, h_count_buf, v_count_buf, valor_H, valor_V;
-	reg [31:0] ipu_inst, count_debug;
+	reg [31:0] ipu_inst, count_debug, t2;
 	wire [199:0] buf_matrix, kernel;
-	wire [31:0] cam_data, conv_data, ram_data_out, data_in, t1,t0,t2;						
+	wire [31:0] cam_data, conv_data, ram_data_out, data_in, t1,t0, u0, u1, v0, v1;						
 	wire [15:0] cam_address, addr_vga, addr, hps_image_address, address_buf, addr_conv;
 	wire [8:0]h_count, v_count, initial_vertical_buffer;
 	wire [7:0]pixel_color;
@@ -150,7 +150,20 @@ module top(
 	assign hps_read_image = instruction[3:0]==READ_IMAGE;
 	assign hps_image_address = instruction[19:4];
 	assign last_col = (h_count_buf == {valor_H[8:2],2'b00});
-	assign t2 = key[1] ? t0 : t1;
+	
+	reg [2:0] debuggin;
+	always @(*)begin
+		debuggin = {sw[9:8], key[1]};
+		case(debuggin)
+			0: t2 = t1;
+			1: t2 = t0;
+			2: t2 = u1;
+			3: t2 = u0;
+			4: t2 = v1;
+			5: t2 = v0;
+			default t2 = t0;
+		endcase
+	end
 	
 	reg test;
 	assign enable_debug = test & !key[1];
@@ -192,12 +205,13 @@ module top(
 					if (!new_flag) begin
 						new_flag <= 1;
 					end else begin
+						new_flag <= 0;
 						count_debug <= count_debug + 1;
 						if (last_col) begin
 							h_count_buf <= 0;
 							v_count_buf <= (v_count_buf==valor_V) ? 9'h0 : v_count_buf + 1;
 							if (loader == 0) begin
-								ipu_state <= WAIT_CONV;
+								ipu_state <= SEND_CONV;
 								start_buf <= 0;
 								loader <= loader;
 							end else begin
@@ -332,7 +346,7 @@ module top(
 		start_buf,
 		next_matrix,
 		size,
-		buf_matrix,t0,t1
+		buf_matrix,t0,t1,u0,u1,v0,v1
 	);
 	
 
