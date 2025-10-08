@@ -60,17 +60,14 @@ module top(
 	wire [3:0] opcode;
 	
 	assign sent_instruction = ipu_request ? ipu_inst : instruction;
-	reg ipu_requestL;
-	always @(posedge clk) ipu_requestL <= ipu_request;
-	assign ipu_request_pulse = !ipu_requestL & ipu_request;
 	
 	convolution_coprocessor new_coprocessor(
 		!clk,
 		sent_instruction,
-		(activate_instruction | ipu_request_pulse), 
+		(activate_instruction | ipu_request), 
 		coprocessor_data,
 		wait_signal,
-		ipu_request,
+		ipu_control,
 		operandA, 
 		operandB,
 		done_conv,
@@ -111,18 +108,21 @@ module top(
 
 	
 	parameter
-					WAIT_CONV	= 2'b00,
-					LOAD_BUFFER	= 2'b01,
-					SEND_CONV 	= 2'b10,
-					STB_DELAY 	= 2'b11;
+					IDLE			= 3'b000,
+					INIT_IPU		= 3'b001,
+					READ_LINE	= 3'b010,
+					NEW_LINE		= 3'b011,
+					SEND_INST	= 3'b100,
+					WAIT_PROC	= 3'b101,
+					SAVE_RES 	= 3'b110;
 	
-	reg write_vga, start_process, ipu_request, start_buf, next_matrix, new_flag;
-	reg [1:0]ipu_state;
-	reg [3:0]loader, instruction_code;
+	reg write_vga, start_process, ipu_request, ipu_control, next_matrix, new_flag, next_start, buf_control;
+	reg [2:0]ipu_state;
+	reg [3:0]loader, instruction_code, next_instruction_code;
 	reg [8:0]h_count_conv, v_count_conv, h_count_buf, v_count_buf, valor_H, valor_V;
-	reg [31:0] ipu_inst, count_debug, t2;
+	reg [31:0] ipu_inst, count_debug;
 	wire [199:0] buf_matrix, kernel;
-	wire [31:0] cam_data, conv_data, ram_data_out, data_in, t1,t0, u0, u1, v0, v1;						
+	wire [31:0] cam_data, conv_data, ram_data_out, data_in;						
 	wire [15:0] cam_address, addr_vga, addr, hps_image_address, address_buf, addr_conv;
 	wire [8:0]h_count, v_count, initial_vertical_buffer;
 	wire [7:0]pixel_color;
@@ -132,7 +132,7 @@ module top(
 	
 	assign address_buf = {v_count_buf, h_count_buf[8:2]};
 	assign WRITE_ENABLE = cam_we | conv_we;
-	assign addr = 	(ipu_state==LOAD_BUFFER) ? address_buf : 
+	assign addr = 	buf_control ? address_buf : 
 						hps_read_image ? hps_image_address : 
 						cam_we | cam_valid_pixel ? cam_address : 
 						result_writing ? addr_conv : 
@@ -144,153 +144,246 @@ module top(
 	assign pixel_color = (opcode==CONV) ? (matrix_C[7:0]) : (matrix_C[23:16]);
 	
 	//LEMBRAR DE TESTAR start_buf ? .. : ..; depois
-	assign h_count = ipu_state==LOAD_BUFFER ? h_count_buf : h_count_conv;
-	assign v_count = ipu_state==LOAD_BUFFER ? v_count_buf : v_count_conv;
 	
 	assign hps_read_image = instruction[3:0]==READ_IMAGE;
 	assign hps_image_address = instruction[19:4];
-	assign last_col = (h_count_buf == {valor_H[8:2],2'b00});
+
 	
-	reg [2:0] debuggin;
-	always @(*)begin
-		debuggin = {sw[9:8], key[1]};
-		case(debuggin)
-			0: t2 = t1;
-			1: t2 = t0;
-			2: t2 = u1;
-			3: t2 = u0;
-			4: t2 = v1;
-			5: t2 = v0;
-			default t2 = t0;
-		endcase
-	end
-	
-	reg test;
-	assign enable_debug = test & !key[1];
-	always @ (posedge clk) begin
-		test <= key[1];
-		
-		case (ipu_state)
-			WAIT_CONV: begin
-				if((instruction[3:0]==PHOTO_CONV) & !start_process) begin
-					ipu_state <= LOAD_BUFFER;
-					instruction_code <= (sw[7:4] == 4'b1111) ? instruction[7:4] : sw[7:4];
-					valor_H <= instruction[16:8];
-					valor_V <= instruction[25:17];
-					start_process <= 1;
+	reg save_buf, next_line;
+	reg [2:0] next_ipu;
+	reg [8:0] next_H_buffer, next_V_buffer, next_H_CONVOLUTION, next_V_CONVOLUTION;
+	reg [3:0] next_loader;
+	always @(*) begin
+		case(ipu_state)
+			IDLE: begin
+				//MAIN LOGIC
+				if ((instruction[3:0]==PHOTO_CONV) & !start_process) begin
+					next_ipu = INIT_IPU;
+					next_instruction_code = instruction[7:4];
+					next_start = 1'b1;
 				end else if (instruction[3:0]!=PHOTO_CONV) begin
-					start_process <= 0;
-				end
-				start_buf <= 0;
-				loader <= 0;
-				h_count_buf <= 0;
-				v_count_buf <= 0;
-				h_count_conv <= 0;
-				v_count_conv <= 0;
-				ipu_request <= 0;
-				next_matrix <= 0;
-				count_debug <= 0;
-				new_flag <= 0;
-			end
-			
-			LOAD_BUFFER: begin
-			
-			
-				next_matrix <= 0;
-				if (!start_buf) begin
-					start_buf <= 1;
-					loader <= size + 1;
-					v_count_buf <= initial_vertical_buffer;
+					next_ipu = IDLE;
+					next_instruction_code = instruction_code;
+					next_start = 1'b0;
 				end else begin
-					if (!new_flag) begin
-						new_flag <= 1;
-					end else begin
-						new_flag <= 0;
-						count_debug <= count_debug + 1;
-						if (last_col) begin
-							h_count_buf <= 0;
-							v_count_buf <= (v_count_buf==valor_V) ? 9'h0 : v_count_buf + 1;
-							if (loader == 0) begin
-								ipu_state <= SEND_CONV;
-								start_buf <= 0;
-								loader <= loader;
-							end else begin
-								ipu_state <= LOAD_BUFFER;
-								start_buf <= 1;
-								loader <= loader - 1;
-							end
-						end else begin
-							loader <= loader;
-							h_count_buf <= h_count_buf + 4;
-							v_count_buf <= v_count_buf;
-							start_buf <= 1;
-						end
-					end
+					next_ipu = IDLE;
+					next_instruction_code = instruction_code;
+					next_start = start_process;
 				end
 				
+				//EXTRA
+				buf_control = 1'b0;
+				next_loader = 4'b0;
+				next_V_buffer = 9'b0;
+				next_H_buffer = 9'b0;
+				next_H_CONVOLUTION = 9'b0;
+				next_V_CONVOLUTION = 9'b0;
+				save_buf = 1'b0;
+				next_line = 1'b0;
+				ipu_request = 1'b0;
+				ipu_control = 1'b0;
+				next_matrix = 1'b0;
+				ipu_inst = 32'b0;
+			
+			end
+	
+			
+			INIT_IPU: begin
+				//MAIN LOGIC
+				buf_control = 1'b1;
+				next_ipu = READ_LINE;
+				next_loader = size + 1'b1;
+				next_V_buffer = initial_vertical_buffer;
+				next_H_buffer = 9'b0;
 				
-				
+				//EXTRA
+				next_H_CONVOLUTION = h_count_conv;
+				next_V_CONVOLUTION = v_count_conv;
+				save_buf = 1'b0;
+				next_line = 1'b0;
+				ipu_request = 1'b0;
+				ipu_control = 1'b0;
+				next_matrix = 1'b0;
+				ipu_inst = 32'b0;
+				next_instruction_code = instruction_code;
+				next_start = start_process;
 			end
 			
-			SEND_CONV: begin
-				loader <= 0;
-				
-				if (!ipu_request) begin
-					ipu_request <= 1;
-					ipu_inst <= {v_count_conv,h_count_conv,current_opcode};
-					next_matrix <= 0;
-				end else if (conv_write_done) begin
-					ipu_request <= 0;
-					next_matrix <= 1;
-					start_buf <= 0;
-					if(h_count_conv==valor_H)begin
-						if (v_count_conv==valor_V) begin
-							h_count_conv <= 0;
-							v_count_conv <= 0;
-							ipu_state <= WAIT_CONV;
-						end else begin
-							h_count_conv <= 0;
-							v_count_conv <= v_count_conv + 1;
-							ipu_state <= STB_DELAY;
-						end
-					end
-					
-					else begin
-						h_count_conv <= h_count_conv + 1;
-						v_count_conv <= v_count_conv;
-						ipu_state <= SEND_CONV;
-						start_buf <= 0;
-					end
+			READ_LINE: begin
+				save_buf = 1'b1;
+				buf_control = 1'b1;
+				if (h_count_buf == 9'h1FC & loader != 0) begin
+					next_ipu = NEW_LINE;
+					next_H_buffer = 9'b0;
+				end else if (h_count_buf == 9'h1FC) begin
+					next_ipu = SEND_INST;
+					next_H_buffer = 9'b0;
 				end else begin
-					next_matrix <= 0;
+					next_ipu = READ_LINE;
+					next_H_buffer = h_count_buf + 3'b100;
 				end
+				
+				//EXTRA
+				next_loader = loader;
+				next_V_buffer = v_count_buf;
+				next_H_CONVOLUTION = h_count_conv;
+				next_V_CONVOLUTION = v_count_conv;
+				next_line = 1'b0;
+				ipu_request = 1'b0;
+				ipu_control = 1'b0;
+				next_matrix = 1'b0;
+				ipu_inst = 32'b0;
+				next_instruction_code = instruction_code;
+				next_start = start_process;
 			end
-						
 			
-			STB_DELAY: begin
-				new_flag <= 0;
-				start_buf <= 1;
-				next_matrix <= 0;
-				ipu_state <= LOAD_BUFFER;
+			NEW_LINE: begin
+				next_ipu = READ_LINE;
+				buf_control = 1'b1;
+				next_line = 1'b1;
+				if(loader == 4'b0) next_loader = 4'b0;
+				else next_loader = loader - 4'b1;
+				if (v_count_buf == 9'h1DF) next_V_buffer = 1'b0;
+				else next_V_buffer = v_count_buf + 1'b1;
+				
+				//EXTRA
+				next_H_buffer = h_count_buf;
+				next_H_CONVOLUTION = h_count_conv;
+				next_V_CONVOLUTION = v_count_conv;
+				save_buf = 1'b0;
+				ipu_request = 1'b0;
+				ipu_control = 1'b0;
+				next_matrix = 1'b0;
+				ipu_inst = 32'b0;
+				next_instruction_code = instruction_code;
+				next_start = start_process;
+			end
+			
+			SEND_INST: begin
+				next_ipu = WAIT_PROC;
+				ipu_control = 1'b1;
+				ipu_request = 1'b1;
+				ipu_inst = {v_count_conv,h_count_conv,current_opcode};
+				
+				//EXTRA
+				buf_control = 1'b0;
+				next_loader = loader;
+				next_V_buffer = v_count_buf;
+				next_H_buffer = h_count_buf;
+				next_H_CONVOLUTION = h_count_conv;
+				next_V_CONVOLUTION = v_count_conv;
+				save_buf = 1'b0;
+				next_line = 1'b0;
+				next_matrix = 1'b0;
+				next_instruction_code = instruction_code;
+				next_start = start_process;
+			end
+			
+			
+			WAIT_PROC: begin
+				ipu_control = 1'b1;
+				ipu_inst = {v_count_conv,h_count_conv,current_opcode};
+			
+				if (conv_write_done) begin
+					next_ipu = SAVE_RES;
+				end else begin
+					next_ipu = WAIT_PROC;
+				end
+				
+				//EXTRA
+				buf_control = 1'b0;
+				next_loader = loader;
+				next_V_buffer = v_count_buf;
+				next_H_buffer = h_count_buf;
+				next_H_CONVOLUTION = h_count_conv;
+				next_V_CONVOLUTION = v_count_conv;
+				save_buf = 1'b0;
+				next_line = 1'b0;
+				ipu_request = 1'b0;
+				next_matrix = 1'b0;
+				next_instruction_code = instruction_code;
+				next_start = start_process;
+			end
+			
+			SAVE_RES: begin
+				next_matrix = 1'b1;
+				if(h_count_conv != 9'h1ff) begin
+					next_ipu = SEND_INST;
+					next_H_CONVOLUTION = h_count_conv + 1'b1;
+					next_V_CONVOLUTION = v_count_conv;
+				end else if (v_count_conv != 9'h1df) begin
+					next_ipu = NEW_LINE;
+					next_H_CONVOLUTION = 9'b0;
+					next_V_CONVOLUTION = v_count_conv + 1'b1;
+				end else begin
+					next_ipu = IDLE;
+					next_H_CONVOLUTION = 9'b0;
+					next_V_CONVOLUTION = 9'b0;
+				end
+				
+				//EXTRA
+				buf_control = 1'b0;
+				next_loader = loader;
+				next_V_buffer = v_count_buf;
+				next_H_buffer = h_count_buf;
+				save_buf = 1'b0;
+				next_line = 1'b0;
+				ipu_request = 1'b0;
+				ipu_control = 1'b0;
+				ipu_inst = 32'b0;
+				next_instruction_code = instruction_code;
+				next_start = start_process;
+			
 			end
 			
 			default: begin
-				ipu_state <= WAIT_CONV;
+				next_ipu = IDLE;
+				buf_control = 1'b0;
+				next_loader = 4'b0;
+				next_V_buffer = 9'b0;
+				next_H_buffer = 9'b0;
+				next_H_CONVOLUTION = 9'b0;
+				next_V_CONVOLUTION = 9'b0;
+				save_buf = 1'b0;
+				next_line = 1'b0;
+				ipu_request = 1'b0;
+				ipu_control = 1'b0;
+				next_matrix = 1'b0;
+				ipu_inst = 32'b0;
+				next_instruction_code = 4'b0;
+				next_start = 1'b0;
 			end
-				
 		endcase
+	
+	
 	end
 	
-	assign leds = {count_debug[11:3],count_debug[0]};
 	
-	SEG7_LUT_8(h0,h1,h2,h3,h4,h5,t2);
+	
+	
+	
+	
+	
+	
+	
+	always @ (posedge clk) begin
+		ipu_state <= next_ipu;
+		instruction_code <= next_instruction_code;
+		start_process <= next_start;
+		h_count_buf <= next_H_buffer;
+		v_count_buf <= next_V_buffer;
+		loader <= next_loader;
+		h_count_conv <= next_H_CONVOLUTION;
+		v_count_conv <= next_V_CONVOLUTION;
+	end
+
 	
 	DE2_D5M camera_interface(
 		clk,
 		key,
 		sw,
-		,,,,,,
-		,
+		h0,h1,h2,h3,h4,h5,
+		leds,
 		GPIO_0,
 		GPIO_1,
 		cam_data,
@@ -343,10 +436,11 @@ module top(
 		clk,
 		ram_data_out, 
 		h_count_buf,
-		start_buf,
+		save_buf,
 		next_matrix,
+		next_line,
 		size,
-		buf_matrix,t0,t1,u0,u1,v0,v1
+		buf_matrix
 	);
 	
 
