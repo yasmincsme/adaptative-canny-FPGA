@@ -109,16 +109,17 @@ module top(
 	
 	parameter
 					IDLE			= 3'b000,
-					INIT_IPU		= 3'b001,
-					READ_LINE	= 3'b010,
-					NEW_LINE		= 3'b011,
+					INIT_IPU		= 4'b1001,
+					READ_LINE	= 4'b1010,
+					NEW_LINE		= 4'b1011,
 					SEND_INST	= 3'b100,
 					WAIT_PROC	= 3'b101,
 					SAVE_RES 	= 3'b110,
-					EXT_DELAY	= 3'b111;
+					EXT_DELAY	= 3'b111,
+					TEST			= 4'b1000;
 	
 	reg write_vga, start_process, ipu_request, ipu_control, next_matrix, new_flag, next_start, buf_control;
-	reg [2:0]ipu_state;
+	reg [3:0]ipu_state;
 	reg [3:0]loader, instruction_code, next_instruction_code;
 	reg [8:0]h_count_conv, v_count_conv, h_count_buf, v_count_buf, valor_H, valor_V;
 	reg [31:0] ipu_inst, count_debug;
@@ -131,7 +132,7 @@ module top(
 	wire [1:0]size;
 	wire cam_valid_pixel, cam_clock, cam_we, conv_we, memory_clk;
 	
-	assign address_buf = {v_count_buf, h_count_buf[8:2]} + 1'b1;
+	assign address_buf = {v_count_buf, h_count_buf[8:2]};
 	assign WRITE_ENABLE = cam_we | conv_we;
 	assign addr = 	buf_control ? address_buf : 
 						hps_read_image ? hps_image_address : 
@@ -148,10 +149,10 @@ module top(
 	
 	assign hps_read_image = instruction[3:0]==READ_IMAGE;
 	assign hps_image_address = instruction[19:4];
-
 	
+
 	reg save_buf, next_line;
-	reg [2:0] next_ipu;
+	reg [3:0] next_ipu;
 	reg [8:0] next_H_buffer, next_V_buffer, next_H_CONVOLUTION, next_V_CONVOLUTION;
 	reg [3:0] next_loader;
 	always @(*) begin
@@ -191,11 +192,11 @@ module top(
 			
 			INIT_IPU: begin
 				//MAIN LOGIC
-				buf_control = 1'b1;
-				next_ipu = EXT_DELAY;
+				next_ipu = TEST;
 				next_loader = size + 1'b1;
 				next_V_buffer = initial_vertical_buffer;
 				next_H_buffer = 9'b0;
+				buf_control = 1'b1;
 				
 				//EXTRA
 				next_H_CONVOLUTION = h_count_conv;
@@ -210,10 +211,31 @@ module top(
 				next_start = start_process;
 			end
 			
+			TEST: begin
+				//MAIN LOGIC
+				next_ipu = EXT_DELAY;
+				buf_control = 1'b1;
+				
+				//EXTRA
+				next_loader = loader;
+				next_V_buffer = v_count_buf;
+				next_H_buffer = h_count_buf;
+				next_H_CONVOLUTION = h_count_conv;
+				next_V_CONVOLUTION = v_count_conv;
+				save_buf = 1'b0;
+				next_line = 1'b0;
+				ipu_request = 1'b0;
+				ipu_control = 1'b0;
+				next_matrix = 1'b0;
+				ipu_inst = 32'b0;
+				next_instruction_code = instruction_code;
+				next_start = start_process;
+			end
+			
 			EXT_DELAY: begin
 				//MAIN LOGIC
-				buf_control = 1'b1;
 				next_ipu = READ_LINE;
+				buf_control = 1'b1;
 				
 				//EXTRA
 				next_loader = loader;
@@ -241,7 +263,7 @@ module top(
 					next_ipu = SEND_INST;
 					next_H_buffer = 9'b0;
 				end else begin
-					next_ipu = EXT_DELAY;
+					next_ipu = TEST;
 					next_H_buffer = h_count_buf + 3'b100;
 				end
 				
@@ -359,8 +381,8 @@ module top(
 			end
 			
 			default: begin
-				next_ipu = IDLE;
 				buf_control = 1'b0;
+				next_ipu = IDLE;
 				next_loader = 4'b0;
 				next_V_buffer = 9'b0;
 				next_H_buffer = 9'b0;
