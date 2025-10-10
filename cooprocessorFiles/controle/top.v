@@ -114,7 +114,8 @@ module top(
 					NEW_LINE		= 3'b011,
 					SEND_INST	= 3'b100,
 					WAIT_PROC	= 3'b101,
-					SAVE_RES 	= 3'b110;
+					SAVE_RES 	= 3'b110,
+					EXT_DELAY	= 3'b111;
 	
 	reg write_vga, start_process, ipu_request, ipu_control, next_matrix, new_flag, next_start, buf_control;
 	reg [2:0]ipu_state;
@@ -130,7 +131,7 @@ module top(
 	wire [1:0]size;
 	wire cam_valid_pixel, cam_clock, cam_we, conv_we, memory_clk;
 	
-	assign address_buf = {v_count_buf, h_count_buf[8:2]};
+	assign address_buf = {v_count_buf, h_count_buf[8:2]} + 1'b1;
 	assign WRITE_ENABLE = cam_we | conv_we;
 	assign addr = 	buf_control ? address_buf : 
 						hps_read_image ? hps_image_address : 
@@ -191,12 +192,33 @@ module top(
 			INIT_IPU: begin
 				//MAIN LOGIC
 				buf_control = 1'b1;
-				next_ipu = READ_LINE;
+				next_ipu = EXT_DELAY;
 				next_loader = size + 1'b1;
 				next_V_buffer = initial_vertical_buffer;
 				next_H_buffer = 9'b0;
 				
 				//EXTRA
+				next_H_CONVOLUTION = h_count_conv;
+				next_V_CONVOLUTION = v_count_conv;
+				save_buf = 1'b0;
+				next_line = 1'b0;
+				ipu_request = 1'b0;
+				ipu_control = 1'b0;
+				next_matrix = 1'b0;
+				ipu_inst = 32'b0;
+				next_instruction_code = instruction_code;
+				next_start = start_process;
+			end
+			
+			EXT_DELAY: begin
+				//MAIN LOGIC
+				buf_control = 1'b1;
+				next_ipu = READ_LINE;
+				
+				//EXTRA
+				next_loader = loader;
+				next_V_buffer = v_count_buf;
+				next_H_buffer = h_count_buf;
 				next_H_CONVOLUTION = h_count_conv;
 				next_V_CONVOLUTION = v_count_conv;
 				save_buf = 1'b0;
@@ -219,7 +241,7 @@ module top(
 					next_ipu = SEND_INST;
 					next_H_buffer = 9'b0;
 				end else begin
-					next_ipu = READ_LINE;
+					next_ipu = EXT_DELAY;
 					next_H_buffer = h_count_buf + 3'b100;
 				end
 				
@@ -382,7 +404,7 @@ module top(
 		clk,
 		key,
 		sw,
-		h0,h1,h2,h3,h4,h5,
+		,,,,,,
 		leds,
 		GPIO_0,
 		GPIO_1,
@@ -440,8 +462,22 @@ module top(
 		next_matrix,
 		next_line,
 		size,
-		buf_matrix
+		buf_matrix, t0,t1,u0,u1,v0,v1
 	);
+	reg [31:0]v;
+	wire [31:0]t0,t1,u0,u1,v0,v1;
+	always @(*)begin
+		case(sw[9:7])
+			0: v = t1;
+			1: v = t0;
+			2: v = u1;
+			3: v = u0;
+			4: v = v1;
+			5: v = v0;
+			default v = t0;
+		endcase
+	end
+	SEG7_LUT_8(h0,h1,h2,h3,h4,h5,v);
 	
 
 endmodule

@@ -6,9 +6,16 @@ module line_buffers(
 	input next_matrix, 
 	input new_line,
 	input [1:0] size, 
-	output reg [199:0] matrix
+	output reg [199:0] matrix, output [31:0] t0,t1,u0,u1,v0,v1
 );
 
+
+assign t0 = BUFFER0[0+:32];
+assign t1 = BUFFER0[32+:32];
+assign u0 = BUFFER1[0+:32];
+assign u1 = BUFFER1[32+:32];
+assign v0 = BUFFER2[0+:32];
+assign v1 = BUFFER2[32+:32];
 
 reg [4095:0] BUFFER0, BUFFER1, BUFFER2, BUFFER3, BUFFER4;
 
