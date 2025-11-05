@@ -192,34 +192,13 @@ module top(
 			
 			INIT_IPU: begin
 				//MAIN LOGIC
-				next_ipu = TEST;
+				next_ipu = EXT_DELAY;
 				next_loader = size + 1'b1;
 				next_V_buffer = initial_vertical_buffer;
 				next_H_buffer = 9'b0;
 				buf_control = 1'b1;
 				
 				//EXTRA
-				next_H_CONVOLUTION = h_count_conv;
-				next_V_CONVOLUTION = v_count_conv;
-				save_buf = 1'b0;
-				next_line = 1'b0;
-				ipu_request = 1'b0;
-				ipu_control = 1'b0;
-				next_matrix = 1'b0;
-				ipu_inst = 32'b0;
-				next_instruction_code = instruction_code;
-				next_start = start_process;
-			end
-			
-			TEST: begin
-				//MAIN LOGIC
-				next_ipu = EXT_DELAY;
-				buf_control = 1'b1;
-				
-				//EXTRA
-				next_loader = loader;
-				next_V_buffer = v_count_buf;
-				next_H_buffer = h_count_buf;
 				next_H_CONVOLUTION = h_count_conv;
 				next_V_CONVOLUTION = v_count_conv;
 				save_buf = 1'b0;
@@ -263,7 +242,7 @@ module top(
 					next_ipu = SEND_INST;
 					next_H_buffer = 9'b0;
 				end else begin
-					next_ipu = TEST;
+					next_ipu = EXT_DELAY;
 					next_H_buffer = h_count_buf + 3'b100;
 				end
 				
@@ -282,7 +261,7 @@ module top(
 			end
 			
 			NEW_LINE: begin
-				next_ipu = TEST;
+				next_ipu = EXT_DELAY;
 				buf_control = 1'b1;
 				next_line = 1'b1;
 				if(loader == 4'b0) next_loader = 4'b0;
