@@ -282,7 +282,7 @@ module top(
 			end
 			
 			NEW_LINE: begin
-				next_ipu = READ_LINE;
+				next_ipu = TEST;
 				buf_control = 1'b1;
 				next_line = 1'b1;
 				if(loader == 4'b0) next_loader = 4'b0;
