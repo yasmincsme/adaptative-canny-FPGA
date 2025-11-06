@@ -160,7 +160,7 @@ int main(void){
     hps_base = map_hps(fd);
     pio_cmd  = (volatile int *)((char*)hps_base + PIO_LED_BASE);
     //////////////////////////////
-    int input;
+    int input, h_value, v_value;
     int program = 1;
     while (program){
         printf("===What wanna do?===\n");
@@ -174,7 +174,7 @@ int main(void){
         printf("7 -\tConvert to Grayscale\n");
         printf("8 -\tRead Image\n");
         printf("===Any other integer to close program===\n");
-        scanf("%d", &input);
+        scanf("%d %d %d", &input, &h_value, &v_value);
         switch (input){
             case 0:
             case 1:
@@ -183,7 +183,7 @@ int main(void){
             case 4:
             case 5:
             case 6:
-	    case 7:
+	        case 7:
                 *pio_cmd = getInstruction(input);
                 printf("\ninst: %x\n\n",*pio_cmd);
                 break;
