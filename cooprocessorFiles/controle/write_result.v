@@ -48,18 +48,18 @@ always @(*) begin
 		
 		2: begin
 			next_state = 3;
-			WRITE_ENABLE = 0;
-			done = 0;
-			memory_acc = 1;
-		end
-		
-		3: begin
-			next_state = 4;
 			WRITE_ENABLE = 1;
 			done = 0;
 			memory_acc = 1;
 		end
 		
+		3: begin
+			next_state = 0;
+			WRITE_ENABLE = 0;
+			done = 1;
+			memory_acc = 1;
+		end
+		/*
 		4: begin
 			next_state = 5;
 			WRITE_ENABLE = 0;
@@ -108,7 +108,7 @@ always @(*) begin
 			WRITE_ENABLE = 0;
 			memory_acc = 1;
 		end
-		
+		*/
 		default: begin
 			next_state = 0;
 			WRITE_ENABLE = 0;
