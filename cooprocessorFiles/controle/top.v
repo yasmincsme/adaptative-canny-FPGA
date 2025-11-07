@@ -62,7 +62,7 @@ module top(
 	assign sent_instruction = ipu_request ? ipu_inst : instruction;
 	
 	convolution_coprocessor new_coprocessor(
-		!clk,
+		clk,
 		sent_instruction,
 		(activate_instruction | ipu_request), 
 		coprocessor_data,
