@@ -62,7 +62,7 @@ always @(*) begin
 end
 
 	
-always @(posedge clk) begin
+always @(negedge clk) begin
 	MHz25 <= ~MHz25;
 end
 	
