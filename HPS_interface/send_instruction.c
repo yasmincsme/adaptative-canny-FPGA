@@ -56,8 +56,6 @@ void unmap_hps(void *base)
     }
 }
 
-
-
 void bayer_grbg_to_rgb(uint8_t *bayer, uint8_t *rgb, uint8_t *greyscale, int width, int height) {
     int x, y;
 
